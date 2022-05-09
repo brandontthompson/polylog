@@ -1,0 +1,28 @@
+{
+  "name": "polylog",
+  "version": "1.0.0",
+  "description": "logging service ",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brandontthompson/polylog.git"
+  },
+  "keywords": [
+    "logging",
+    "log",
+    "logger",
+    "file"
+  ],
+  "author": "brandon thompson",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/brandontthompson/polylog/issues"
+  },
+  "homepage": "https://github.com/brandontthompson/polylog#readme",
+  "devDependencies": {
+    "@types/node": "^17.0.31"
+  }
+}
