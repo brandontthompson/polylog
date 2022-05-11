@@ -2,28 +2,26 @@ import { appendFile, existsSync, writeFile } from "fs";
 
 const fileRotation:string[] = []; 
 
-export class PolyLog {
-    private static service:string
-    private static dateFormat:string
-    private static fileExtension:string;
-    private static writeFile:boolean
-    private static FileRotateTime:number 
-    private static maxFileSize:number
 
-    constructor(dateFormat?:string, writeFile?:boolean, logRotateTime?:number, maxLogSize?:number){
-        PolyLog.dateFormat = dateFormat || "YYYY-DD-MM HH:MM:SS"
-        PolyLog.fileExtension = ".log"
+export class PolyLog {
+    public static service:string
+    public static dateFormat:string
+    public static fileExtension:string;
+    public static writeFile:boolean
+    public static FileRotateTime:number 
+    public static maxFileSize:number
+
+    constructor(service?:string, dateFormat?:string, writeFile?:boolean, logRotateTime?:number, maxLogSize?:number){
+        PolyLog.dateFormat = dateFormat || "%Y-%D-%M %h:%m:%s";
+        PolyLog.service = service || "PolyLog";
+        PolyLog.fileExtension = ".log";
         PolyLog.writeFile = writeFile || false;
         PolyLog.FileRotateTime = logRotateTime || 86400;
         PolyLog.maxFileSize = maxLogSize || 50;
     }
 
-    public static Init(dateFormat?:string, writeFile?:boolean, logRotateTime?:number, maxLogSize?:number){
-        PolyLog.dateFormat = dateFormat || "YYYY-DD-MM HH:MM:SS"
-    }
-    
     public static Log(message:any, loglevel?:LogLevel|undefined, writeNewFile?:boolean){
-        const log:PolyLog = isPolyLog(message) ? message : {service: "UNKNOWN", message:message}; 
+        const log:Log = isPolyLog(message) ? message : {service: PolyLog.service || "UNKNOWN", message:message}; 
         return PolyLog.Log3(log, loglevel ? loglevel : LogLevel.INFO, writeNewFile||false);   
     }
     
@@ -39,8 +37,20 @@ export class PolyLog {
         PolyLog.Log(message, LogLevel.INFO);
     }
     
-    private static Log3(polylog:PolyLog, logLevel:LogLevel, writeNewFile:boolean):LogFile | undefined | null{
-        const message:string = PolyLog.FormatTime() + " " + " [ " +polylog.service + " ] " + logLevel + " | " + polylog.message
+    private static Log3(polylog:Log, logLevel:LogLevel, writeNewFile:boolean):LogFile | undefined | null{
+        let caller = null;
+        const error = new Error();
+
+        let trace = error.stack?.toString().split("\n") || [];
+
+        for (let index = 0; index < 10; index++) {
+            if(caller === null || caller.length < 1 || caller.includes("write")) break;
+            caller = trace[index].toString().trimStart().replace("at", "").split(" ", 2)[1];
+        }
+
+        let message:string = "%t [%loglevel] %service %msg"
+        message = message.replace("%t", PolyLog.FormatTime()).replace("%loglevel", this.FormatString(logLevel, 6)).replace("%service", this.FormatString(polylog.service.toString(), polylog.service.length + 2)).replace("%msg", polylog.message);
+        // const message:string = PolyLog.FormatTime() + " " + " [ " + this.FormatString(logLevel, 6) + " ] " +this.FormatString(polylog.service.toString(), polylog.service.length + 2) + ((caller)? " - "+ caller + " " : "") + " | " + polylog.message
         PolyLog.Log0(message);
         if(writeNewFile) return PolyLog.WriteFile(message);
     }
@@ -49,11 +59,31 @@ export class PolyLog {
         console.log(msg);
     }
     
-    private static FormatTime(format?:string):number|string|Date{
-        if(this.dateFormat === "epoch") return Date.now();
-        console.log(new Date(format || PolyLog.dateFormat));
+    private static FormatTime(format?:string):string{
+        const date:Date = new Date();
+        // console.log(format || this.dateFormat);?\
         
-        return new Date(format || PolyLog.dateFormat);
+        // console.log(((format||this.dateFormat)?.replace("%Y", date.getFullYear().toString()).replace("%M", date.getMonth().toString()).replace("%D", date.getDate().toString()).replace("%h", date.getHours().toString()).replace("%m", date.getMinutes().toString()
+        // ).replace("%s", date.getSeconds().toString()).replace("%ms", date.getMilliseconds().toString())));
+        // if(this.dateFormat === "epoch") return Date.now().toString();
+        // return ((format||this.dateFormat)?.replace("%Y", date.getFullYear().toString()).replace("%M", date.getMonth().toString()).replace("%D", date.getDate().toString()).replace("%h", date.getHours().toString()).replace("%m", date.getMinutes().toString()
+        // ).replace("%s", date.getSeconds().toString()).replace("%ms", date.getMilliseconds().toString()));
+        //format || PolyLog.dateFormat)
+        return new Date().toISOString();
+    }
+
+    private static FormatString(str:string, len:number) {
+        let formatted = "";
+        const spacing = Math.ceil((len - str.length) / 2);
+
+        for (let index = 0; index < len; index++) {
+            const element = str[index];
+            if(index < spacing || index >= spacing + str.length) formatted += " ";
+            else formatted += str[index - spacing];
+        }
+
+        return formatted;
+
     }
     
     private static WriteFile(str:string):LogFile{
@@ -84,7 +114,7 @@ export enum LogLevel {
     INFO    = "INFO"
 }
 
-export interface PolyLog {
+export interface Log {
     service:string,
     message:any
 }
@@ -96,6 +126,6 @@ type LogFile = {
     time:number;
 }
 
-function isPolyLog(obj:any): obj is PolyLog{
+function isPolyLog(obj:any): obj is Log{
     return obj?.service
 }
