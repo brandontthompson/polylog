@@ -38,18 +38,13 @@ export class PolyLog {
     }
     
     private static Log3(polylog:Log, logLevel:LogLevel, writeNewFile:boolean):LogFile | undefined | null{
-        let caller = null;
-        const error = new Error();
-
-        let trace = error.stack?.toString().split("\n") || [];
-
-        for (let index = 0; index < 10; index++) {
-            if(caller === null || caller.length < 1 || caller.includes("write")) break;
-            caller = trace[index].toString().trimStart().replace("at", "").split(" ", 2)[1];
-        }
-
-        let message:string = "%t [%loglevel] %service %msg"
-        message = message.replace("%t", PolyLog.FormatTime()).replace("%loglevel", this.FormatString(logLevel, 6)).replace("%service", this.FormatString(polylog.service.toString(), polylog.service.length + 2)).replace("%msg", polylog.message);
+        const caller = (logLevel == LogLevel.ERROR) ? ErrorTrace() : null;
+        let message:string = "%t [%loglevel] %service - %trace %msg"
+        message = message.replace("%t", PolyLog.FormatTime(this.dateFormat || "%Y-%M-%D_%h:%m:%s"))
+        .replace("%loglevel", this.FormatString(logLevel, 6))
+        .replace("%service", this.FormatString(polylog.service.toString(), polylog.service.length + 2))
+        .replace("%trace", (caller) ? caller : "")
+        .replace("%msg", polylog.message);
         // const message:string = PolyLog.FormatTime() + " " + " [ " + this.FormatString(logLevel, 6) + " ] " +this.FormatString(polylog.service.toString(), polylog.service.length + 2) + ((caller)? " - "+ caller + " " : "") + " | " + polylog.message
         PolyLog.Log0(message);
         if(writeNewFile) return PolyLog.WriteFile(message);
@@ -59,17 +54,11 @@ export class PolyLog {
         console.log(msg);
     }
     
-    private static FormatTime(format?:string):string{
+    private static FormatTime(format:string):string{
         const date:Date = new Date();
-        // console.log(format || this.dateFormat);?\
-        
-        // console.log(((format||this.dateFormat)?.replace("%Y", date.getFullYear().toString()).replace("%M", date.getMonth().toString()).replace("%D", date.getDate().toString()).replace("%h", date.getHours().toString()).replace("%m", date.getMinutes().toString()
-        // ).replace("%s", date.getSeconds().toString()).replace("%ms", date.getMilliseconds().toString())));
-        // if(this.dateFormat === "epoch") return Date.now().toString();
-        // return ((format||this.dateFormat)?.replace("%Y", date.getFullYear().toString()).replace("%M", date.getMonth().toString()).replace("%D", date.getDate().toString()).replace("%h", date.getHours().toString()).replace("%m", date.getMinutes().toString()
-        // ).replace("%s", date.getSeconds().toString()).replace("%ms", date.getMilliseconds().toString()));
-        //format || PolyLog.dateFormat)
-        return new Date().toISOString();
+
+        return (format.replace("%Y", date.getFullYear().toString()).replace("%M", ("0"+(date.getMonth()+1)).slice(-2).toString()).replace("%D", ("0" + date.getDate()).slice(-2).toString()).replace("%h", date.getHours().toString()).replace("%m", date.getMinutes().toString()
+        ).replace("%s", date.getSeconds().toString()).replace("%ms", date.getMilliseconds().toString()));
     }
 
     private static FormatString(str:string, len:number) {
@@ -86,7 +75,7 @@ export class PolyLog {
 
     }
     
-    private static WriteFile(str:string):LogFile{
+    private static WriteFile(str:string, file?:string):LogFile{
     
         const fileName = this.FormatTime("YYYY-DD-MM_HH:MM:SS")+"-LOGFILE"+this.fileExtension;
         if(existsSync(fileName))
@@ -128,4 +117,26 @@ type LogFile = {
 
 function isPolyLog(obj:any): obj is Log{
     return obj?.service
+}
+
+function ErrorTrace(){
+    let caller:string|null = null;
+    let line:string = "";
+    const error:Error = new Error();
+    
+
+    let trace = (error.stack)?.toString().split("\n") || [];
+
+    for (let index = 0; index < 7; index++) {
+        if(caller && !caller?.toString().includes("write")) break;
+        const tra = trace[index].toString().trimStart().replace("at", "");
+        
+        line = ((tra.split("/").slice(-2)).toString()).slice(0, -1);
+        caller = tra.split(" ", 2)[1];
+        
+        if(index > 7) {caller = null; break;}
+        
+    }
+    if(caller) caller = caller +": "+ line;
+    return caller;
 }

@@ -25,17 +25,13 @@ var PolyLog = /** @class */ (function () {
         PolyLog.Log(message, LogLevel.INFO);
     };
     PolyLog.Log3 = function (polylog, logLevel, writeNewFile) {
-        var _a;
-        var caller = null;
-        var error = new Error();
-        var trace = ((_a = error.stack) === null || _a === void 0 ? void 0 : _a.toString().split("\n")) || [];
-        for (var index = 0; index < 10; index++) {
-            if (caller === null || caller.length < 1 || caller.includes("write"))
-                break;
-            caller = trace[index].toString().trimStart().replace("at", "").split(" ", 2)[1];
-        }
-        var message = "%t [%loglevel] %service %msg";
-        message = message.replace("%t", PolyLog.FormatTime()).replace("%loglevel", this.FormatString(logLevel, 6)).replace("%service", this.FormatString(polylog.service.toString(), polylog.service.length + 2)).replace("%msg", polylog.message);
+        var caller = (logLevel == LogLevel.ERROR) ? ErrorTrace() : null;
+        var message = "%t [%loglevel] %service - %trace %msg";
+        message = message.replace("%t", PolyLog.FormatTime(this.dateFormat || "%Y-%M-%D_%h:%m:%s"))
+            .replace("%loglevel", this.FormatString(logLevel, 6))
+            .replace("%service", this.FormatString(polylog.service.toString(), polylog.service.length + 2))
+            .replace("%trace", (caller) ? caller : "")
+            .replace("%msg", polylog.message);
         // const message:string = PolyLog.FormatTime() + " " + " [ " + this.FormatString(logLevel, 6) + " ] " +this.FormatString(polylog.service.toString(), polylog.service.length + 2) + ((caller)? " - "+ caller + " " : "") + " | " + polylog.message
         PolyLog.Log0(message);
         if (writeNewFile)
@@ -45,15 +41,8 @@ var PolyLog = /** @class */ (function () {
         console.log(msg);
     };
     PolyLog.FormatTime = function (format) {
-        var _a, _b;
         var date = new Date();
-        console.log(this.dateFormat);
-        console.log(((_a = (format || this.dateFormat)) === null || _a === void 0 ? void 0 : _a.replace("%Y", date.getFullYear().toString()).replace("%M", date.getMonth().toString()).replace("%D", date.getDate().toString()).replace("%h", date.getHours().toString()).replace("%m", date.getMinutes().toString()).replace("%s", date.getSeconds().toString()).replace("%ms", date.getMilliseconds().toString())));
-        if (this.dateFormat === "epoch")
-            return Date.now().toString();
-        return ((_b = (format || this.dateFormat)) === null || _b === void 0 ? void 0 : _b.replace("%Y", date.getFullYear().toString()).replace("%M", date.getMonth().toString()).replace("%D", date.getDate().toString()).replace("%h", date.getHours().toString()).replace("%m", date.getMinutes().toString()).replace("%s", date.getSeconds().toString()).replace("%ms", date.getMilliseconds().toString()));
-        //format || PolyLog.dateFormat)
-        return new Date().toISOString();
+        return (format.replace("%Y", date.getFullYear().toString()).replace("%M", ("0" + (date.getMonth() + 1)).slice(-2).toString()).replace("%D", ("0" + date.getDate()).slice(-2).toString()).replace("%h", date.getHours().toString()).replace("%m", date.getMinutes().toString()).replace("%s", date.getSeconds().toString()).replace("%ms", date.getMilliseconds().toString()));
     };
     PolyLog.FormatString = function (str, len) {
         var formatted = "";
@@ -67,7 +56,7 @@ var PolyLog = /** @class */ (function () {
         }
         return formatted;
     };
-    PolyLog.WriteFile = function (str) {
+    PolyLog.WriteFile = function (str, file) {
         var fileName = this.FormatTime("YYYY-DD-MM_HH:MM:SS") + "-LOGFILE" + this.fileExtension;
         if (fs_1.existsSync(fileName))
             fs_1.appendFile(fileName, str, error);
@@ -96,4 +85,25 @@ var LogLevel;
 })(LogLevel = exports.LogLevel || (exports.LogLevel = {}));
 function isPolyLog(obj) {
     return obj === null || obj === void 0 ? void 0 : obj.service;
+}
+function ErrorTrace() {
+    var _a;
+    var caller = null;
+    var line = "";
+    var error = new Error();
+    var trace = ((_a = (error.stack)) === null || _a === void 0 ? void 0 : _a.toString().split("\n")) || [];
+    for (var index = 0; index < 7; index++) {
+        if (caller && !(caller === null || caller === void 0 ? void 0 : caller.toString().includes("write")))
+            break;
+        var tra = trace[index].toString().trimStart().replace("at", "");
+        line = ((tra.split("/").slice(-2)).toString()).slice(0, -1);
+        caller = tra.split(" ", 2)[1];
+        if (index > 7) {
+            caller = null;
+            break;
+        }
+    }
+    if (caller)
+        caller = caller + ": " + line;
+    return caller;
 }
